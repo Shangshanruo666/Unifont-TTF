@@ -1,6 +1,6 @@
-# unifont <a href="https://github.com/multitheftauto/unifont/releases/latest"><img src="https://img.shields.io/github/v/release/multitheftauto/unifont"></a>
+# unifont [on GitHub releases](https://github.com/multitheftauto/unifont/releases/latest) <a href="https://github.com/multitheftauto/unifont/releases/latest"><img src="https://img.shields.io/github/v/release/multitheftauto/unifont"></a>
 
-Unofficial mirror of [Unifont release binaries](http://unifoundry.com/unifont/index.html). This includes the TrueType (`.ttf`) fonts that are no longer offered by unifoundry (as of 15.1.01).
+We've mirrored [Unifont's](http://unifoundry.com/unifont/index.html) release binaries to [GitHub releases](https://github.com/multitheftauto/unifont/releases/latest). This includes the TrueType (`.ttf`) fonts that are no longer offered by unifoundry (as of 15.1.01).
 
 This mirror is manually maintained and its main purpose is offering the TrueType (.ttf) font variant. Please be aware that it doesn't always follow the official release schedule.
 
