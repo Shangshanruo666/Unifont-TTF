@@ -2,11 +2,9 @@
 
 Unofficial mirror of [Unifont release binaries](http://unifoundry.com/unifont/index.html). This includes the TrueType (`.ttf`) fonts that are no longer offered by unifoundry (as of 15.1.01).
 
-## About this TrueType fonts
+This mirror is manually maintained and its main purpose is offering the TrueType (.ttf) font variant. Please be aware that it doesn't always follow the official release schedule.
 
 Huge thanks to [@AlexTMjugador](https://github.com/AlexTMjugador) for studying the .ttf build procedure and setting up GitHub Actions.
-
-This mirror is manually maintained and its main purpose is offering the TrueType (.ttf) font variant. Please be aware that it doesn't always follow the official release schedule.
 
 ## License
 
