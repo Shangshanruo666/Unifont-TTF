@@ -51,17 +51,19 @@ jobs:
           echo "> Verifying Unifont source tarball signature"
           gpg --batch --verify unifont.tar.gz.sig unifont.tar.gz
 
-      - name: Extract and generate required BDF, then build TTF
+      - name: Extract, patch Makefile, generate BDF, and build TTF
         run: |
           tar -xf unifont.tar.gz
           mv "unifont-${{ inputs.unifont_version }}" unifont
           cd unifont/font
 
+          # 修复 Makefile：删除 unifont_sample.bdf 时使用 -f 以避免文件不存在时退出
+          sed -i 's/rm ttfsrc\/unifont_sample.bdf/rm -f ttfsrc\/unifont_sample.bdf/' Makefile
+
           # 生成所有 .hex 文件，包括 unifont_sample-*.hex
           make hex
 
           # 将 unifont_sample.hex 转换为 BDF，以供 ttf-stamp 使用
-          # 若 hex2bdf 未安装，请确保已安装 unifont-bin
           hex2bdf -f "Unifont Sample" < compiled/unifont_sample-${{ inputs.unifont_version }}.hex > compiled/unifont_sample-${{ inputs.unifont_version }}.bdf
 
           # 现在执行完整的 TTF 构建（包括 SBIT 字体）
