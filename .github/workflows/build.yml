@@ -1,7 +1,6 @@
 name: Build Unifont
 
 permissions:
-  # Required for uploading artifacts
   actions: write
 
 on:
@@ -25,7 +24,6 @@ jobs:
       - name: Install required dependencies
         run: |
           sudo apt-get update
-          # fontforge 用于生成 TTF，unifont-bin 提供 hex2bdf 等转换工具
           sudo apt-get install -yq --no-install-recommends fontforge unifont-bin
 
       - name: Download and verify Unifont v${{ inputs.unifont_version }}
@@ -37,18 +35,12 @@ jobs:
           curl -o unifont.tar.gz "$BASE_URL/$SOURCE_TARBALL_NAME"
           curl -o unifont.tar.gz.sig "$BASE_URL/$SOURCE_TARBALL_NAME.sig"
 
-          # Verify according to the instructions at https://unifoundry.com/verify/index.html
-          # with a known-good keyring at this repository
           echo "> Asserting Unifont source tarball provenance..."
-          echo "Creating root of trust key"
           gpg --batch --quick-generate-key --passphrase '' '41898282+github-actions[bot]@users.noreply.github.com'
-          echo "> Importing expected Unifoundry signing keys from unifoundry-keys.gpg"
           gpg --batch --import unifoundry-keys.gpg
-          echo "> Extending trust to Unifoundry signing keys by signing with root of trust key"
           gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10 }' | while read -r key_fingerprint; do
             gpg --batch --expert --quick-lsign "$key_fingerprint" || true
           done
-          echo "> Verifying Unifont source tarball signature"
           gpg --batch --verify unifont.tar.gz.sig unifont.tar.gz
 
       - name: Extract, patch Makefile, generate BDF, and build TTF
@@ -57,16 +49,16 @@ jobs:
           mv "unifont-${{ inputs.unifont_version }}" unifont
           cd unifont/font
 
-          # 修复 Makefile：删除 unifont_sample.bdf 时使用 -f 以避免文件不存在时退出
-          sed -i 's/rm ttfsrc\/unifont_sample.bdf/rm -f ttfsrc\/unifont_sample.bdf/' Makefile
+          # 彻底删除 Makefile 中试图删除 unifont_sample.bdf 的行（该文件已在子 make 中删除）
+          sed -i '/^[[:space:]]*rm[[:space:]]*ttfsrc\/unifont_sample.bdf/d' Makefile
 
           # 生成所有 .hex 文件，包括 unifont_sample-*.hex
           make hex
 
-          # 将 unifont_sample.hex 转换为 BDF，以供 ttf-stamp 使用
+          # 将 unifont_sample.hex 转换为 BDF，以供后续 SBIT 构建
           hex2bdf -f "Unifont Sample" < compiled/unifont_sample-${{ inputs.unifont_version }}.hex > compiled/unifont_sample-${{ inputs.unifont_version }}.bdf
 
-          # 现在执行完整的 TTF 构建（包括 SBIT 字体）
+          # 执行完整的 TTF 构建（包括 SBIT 字体）
           make truetype
 
       - name: Upload generated Unifont BMP TTF as artifact
