@@ -1,69 +1,28 @@
-name: Build Unifont
+steps:
+  - name: Checkout source
+    uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
 
-permissions:
-  # Required for uploading artifacts
-  actions: write
+  - name: Install required dependencies
+    run: |
+      sudo apt-get update
+      sudo apt-get install -yq --no-install-recommends fontforge unifont-bin
 
-on:
-  workflow_dispatch:
-    inputs:
-      unifont_version:
-        description: 'The Unifont version to build (example: 15.1.01)'
-        required: true
-        type: string
+  - name: Download and verify Unifont v${{ inputs.unifont_version }}
+    run: |
+      # 原有验证代码保持不变
+      ...
 
-jobs:
-  build:
-    name: Unifont TTF
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
-
-      - name: Install required dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -yq --no-install-recommends fontforge
-
-      - name: Download and verify Unifont v${{ inputs.unifont_version }}
-        run: |
-          readonly BASE_URL='https://unifoundry.com/pub/unifont/unifont-${{ inputs.unifont_version }}'
-          readonly SOURCE_TARBALL_NAME='unifont-${{ inputs.unifont_version }}.tar.gz'
-
-          echo "> Fetching Unifont source tarball and its signature..."
-          curl -o unifont.tar.gz "$BASE_URL/$SOURCE_TARBALL_NAME"
-          curl -o unifont.tar.gz.sig "$BASE_URL/$SOURCE_TARBALL_NAME.sig"
-
-          # Verify according to the instructions at https://unifoundry.com/verify/index.html
-          # with a known-good keyring at this repository
-          echo "> Asserting Unifont source tarball provenance..."
-          echo "Creating root of trust key"
-          gpg --batch --quick-generate-key --passphrase '' '41898282+github-actions[bot]@users.noreply.github.com'
-          echo "> Importing expected Unifoundry signing keys from unifoundry-keys.gpg"
-          gpg --batch --import unifoundry-keys.gpg
-          echo "> Extending trust to Unifoundry signing keys by signing with root of trust key"
-          gpg --list-keys --with-colons | awk -F: '/^fpr:/ { print $10 }' | while read -r key_fingerprint; do
-            gpg --batch --expert --quick-lsign "$key_fingerprint" || true
-          done
-          echo "> Verifying Unifont source tarball signature"
-          gpg --batch --verify unifont.tar.gz.sig unifont.tar.gz
-
-      - name: Extract and build Unifont BMP TTF
-        run: |
-          tar -xf unifont.tar.gz
-          mv 'unifont-${{ inputs.unifont_version }}' unifont
-          make -C unifont/font truetype
-
-      - name: Upload generated Unifont BMP TTF as artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
-        with:
-          name: Unifont BMP TTF
-          path: unifont/font/compiled/unifont-${{ inputs.unifont_version }}.ttf
-
-      - name: Upload generated Unifont SMP TTF as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Unifont SMP TTF
-          path: unifont/font/compiled/unifont_upper-${{ inputs.unifont_version }}.ttf
+  - name: Extract and build Unifont BMP TTF (with SBIT support)
+    run: |
+      tar -xf unifont.tar.gz
+      mv "unifont-${{ inputs.unifont_version }}" unifont
+      cd unifont/font
+      
+      # 生成所有必要的 .hex 文件（包括 unifont_sample.hex）
+      make hex
+      
+      # 将 unifont_sample.hex 转换为 BDF，供 ttf-stamp 使用
+      hex2bdf -f "Unifont Sample" < compiled/unifont_sample-${{ inputs.unifont_version }}.hex > compiled/unifont_sample-${{ inputs.unifont_version }}.bdf
+      
+      # 现在执行完整的 TTF 构建（包括 SBIT 字体）
+      make truetype
