@@ -43,27 +43,28 @@ jobs:
           done
           gpg --batch --verify unifont.tar.gz.sig unifont.tar.gz
 
-      - name: Extract, patch Makefile, generate BDF, and build TTF
+      - name: Extract, patch Makefile, and build TTF (skip SBIT)
         run: |
           tar -xf unifont.tar.gz
           mv "unifont-${{ inputs.unifont_version }}" unifont
           cd unifont/font
 
-          # 删除 Makefile 中试图删除 unifont_sample.bdf 的行（该文件已在子 make 中删除）
-          # 匹配任意包含 "rm" 和 "unifont_sample.bdf" 的行，使用变量 $(TTFSRC) 的情况
-          sed -i '/rm.*unifont_sample.bdf/d' Makefile
+          # 删除 Makefile 中所有与 sample.bdf 相关的行（install 和 rm）
+          # 这样 ttf-stamp 和 ttf-upper-stamp 就不会尝试复制不存在的 BDF 文件
+          sed -i '/unifont.*_sample.*\.bdf/d' Makefile
 
-          # 验证修改是否生效
-          echo "===== Checking Makefile after sed ====="
-          grep -n "unifont_sample.bdf" Makefile || echo "No lines with unifont_sample.bdf found (good)."
+          # 删除所有 make sbit 的行（因为已经没有 sample.bdf 了）
+          sed -i '/make.*sbit/d' Makefile
 
-          # 生成所有 .hex 文件，包括 unifont_sample-*.hex
+          # 可选：删除可能残留的 rm 行（但已被上面的模式覆盖）
+          # 验证修改
+          echo "===== Checking Makefile after patching ====="
+          grep -n "sample.bdf" Makefile || echo "All sample.bdf lines removed (good)."
+
+          # 生成所有 .hex 文件（BMP 和 SMP 的源）
           make hex
 
-          # 将 unifont_sample.hex 转换为 BDF，以供后续 SBIT 构建
-          hex2bdf -f "Unifont Sample" < compiled/unifont_sample-${{ inputs.unifont_version }}.hex > compiled/unifont_sample-${{ inputs.unifont_version }}.bdf
-
-          # 执行完整的 TTF 构建（包括 SBIT 字体）
+          # 执行 TTF 构建（现在不会尝试 SBIT）
           make truetype
 
       - name: Upload generated Unifont BMP TTF as artifact
