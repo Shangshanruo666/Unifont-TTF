@@ -49,8 +49,16 @@ jobs:
           mv "unifont-${{ inputs.unifont_version }}" unifont
           cd unifont/font
 
-          # 彻底删除 Makefile 中试图删除 unifont_sample.bdf 的行（该文件已在子 make 中删除）
+          # 在修改前先备份 Makefile 以便调试（可选）
+          # cp Makefile Makefile.orig
+
+          # 删除 Makefile 中试图删除 unifont_sample.bdf 的行（该文件已在子 make 中删除）
+          # 匹配行首可能有空格/制表符，后跟 rm，空格，ttfsrc/unifont_sample.bdf
           sed -i '/^[[:space:]]*rm[[:space:]]*ttfsrc\/unifont_sample.bdf/d' Makefile
+
+          # 验证修改是否生效
+          echo "===== Checking Makefile after sed ====="
+          grep -n "unifont_sample.bdf" Makefile || echo "No lines with unifont_sample.bdf found (good)."
 
           # 生成所有 .hex 文件，包括 unifont_sample-*.hex
           make hex
