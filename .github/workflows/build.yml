@@ -43,29 +43,41 @@ jobs:
           done
           gpg --batch --verify unifont.tar.gz.sig unifont.tar.gz
 
-      - name: Extract, patch Makefile, and build TTF (skip SBIT)
+      - name: Extract and build BMP and SMP TTF directly (skip SBIT)
         run: |
           tar -xf unifont.tar.gz
           mv "unifont-${{ inputs.unifont_version }}" unifont
           cd unifont/font
 
-          # 删除 Makefile 中所有与 sample.bdf 相关的行（install 和 rm）
-          # 这样 ttf-stamp 和 ttf-upper-stamp 就不会尝试复制不存在的 BDF 文件
-          sed -i '/unifont.*_sample.*\.bdf/d' Makefile
-
-          # 删除所有 make sbit 的行（因为已经没有 sample.bdf 了）
-          sed -i '/make.*sbit/d' Makefile
-
-          # 可选：删除可能残留的 rm 行（但已被上面的模式覆盖）
-          # 验证修改
-          echo "===== Checking Makefile after patching ====="
-          grep -n "sample.bdf" Makefile || echo "All sample.bdf lines removed (good)."
-
-          # 生成所有 .hex 文件（BMP 和 SMP 的源）
+          # 生成所有 .hex 文件（包括 BMP 和 SMP 的 .hex）
           make hex
 
-          # 执行 TTF 构建（现在不会尝试 SBIT）
-          make truetype
+          # ----- 构建 BMP TTF (unifont) -----
+          echo "Building BMP TTF..."
+          # 从 compiled/unifont-*.hex 提取，移除变体选择器，加入版权符号
+          grep -v "^FE0.:" compiled/unifont-${{ inputs.unifont_version }}.hex > ttfsrc/unifont.hex
+          cat plane00/copyleft.hex >> ttfsrc/unifont.hex
+          install -p plane00/plane00-combining.txt ttfsrc/combining.txt
+          cd ttfsrc && \
+            make FONTFILE="unifont" COMBINING="combining" \
+                 FONTNAME="Unifont" PSNAME="Unifont"
+          cd ..
+          mv ttfsrc/unifont.sfd compiled/unifont-${{ inputs.unifont_version }}.sfd
+          mv ttfsrc/unifont.ttf compiled/unifont-${{ inputs.unifont_version }}.ttf
+          rm ttfsrc/unifont.hex ttfsrc/combining.txt
+
+          # ----- 构建 SMP TTF (unifont_upper) -----
+          echo "Building SMP TTF..."
+          # 从 compiled/unifont_upper-*.hex 提取，移除变体选择器 U+E0100..U+E01EF
+          grep -v "^0E01[0-E].:" compiled/unifont_upper-${{ inputs.unifont_version }}.hex > ttfsrc/unifont_upper.hex
+          sort -u plane0[1-E]/*combining.txt > ttfsrc/combining_upper.txt
+          cd ttfsrc && \
+            make FONTFILE="unifont_upper" COMBINING="combining_upper" \
+                 FONTNAME="Unifont Upper" PSNAME="UnifontUpper"
+          cd ..
+          mv ttfsrc/unifont_upper.sfd compiled/unifont_upper-${{ inputs.unifont_version }}.sfd
+          mv ttfsrc/unifont_upper.ttf compiled/unifont_upper-${{ inputs.unifont_version }}.ttf
+          rm ttfsrc/unifont_upper.hex ttfsrc/combining_upper.txt
 
       - name: Upload generated Unifont BMP TTF as artifact
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
